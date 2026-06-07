@@ -1,0 +1,25 @@
+services:
+  matrix-musicbot:
+    image: ghcr.io/sultanalburaq/matrix-element-call-musicbot:latest
+    container_name: matrix-musicbot
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/app/config/config.toml
+    volumes:
+      - ./config:/app/config:ro
+      - ./patches/bot.py:/app/bot.py:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./cache:/tmp/musicbot_audio
+    networks:
+      - matrix
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+networks:
+  matrix:
+    external: true
+    name: ${MATRIX_DOCKER_NETWORK:-matrix}
