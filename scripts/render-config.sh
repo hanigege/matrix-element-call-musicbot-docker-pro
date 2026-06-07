@@ -19,6 +19,7 @@ set +a
 : "${MATRIX_USER_ID:?MATRIX_USER_ID is required}"
 : "${MATRIX_ACCESS_TOKEN:?MATRIX_ACCESS_TOKEN is required}"
 : "${MATRIX_ALLOWED_ROOM_ID:=}"
+: "${MATRIX_ADMIN_USER_ID:=}"
 
 mkdir -p "$ROOT_DIR/config" "$ROOT_DIR/data" "$ROOT_DIR/logs" "$ROOT_DIR/cache"
 
@@ -36,6 +37,7 @@ for key in (
     "MATRIX_USER_ID",
     "MATRIX_ACCESS_TOKEN",
     "MATRIX_ALLOWED_ROOM_ID",
+    "MATRIX_ADMIN_USER_ID",
 ):
     text = text.replace("${" + key + "}", os.environ.get(key, ""))
 output_path.write_text(text, encoding="utf-8")

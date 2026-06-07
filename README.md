@@ -16,6 +16,7 @@
 - 支持 `!stations` 查看电台别名
 - 支持 `!podcasts` 查看播客别名
 - 支持房间白名单，避免陌生房间抢占播放
+- 支持管理员账号白名单，只有指定 Matrix 账号可以查看节目列表、点播或控制播放
 - 直播流切换走专门逻辑，避免把直播流当普通文件下载导致卡住
 - 默认较安静，适合家庭/小群长期运行
 
@@ -34,9 +35,20 @@
 
 ```dotenv
 MATRIX_ALLOWED_ROOM_ID=!roomid:example.com
+MATRIX_ADMIN_USER_ID=@admin:example.com
 ```
 
 如果要给多个互不影响的房间使用，建议为每个房间部署一个独立 bot 实例，使用不同的 bot 账号、容器名、数据目录和房间白名单。
+
+### 只有管理员可以控制播放
+
+`[access].admin_users` 是播放控制边界。只有这里列出的 Matrix 账号可以：
+
+- 查看 `!stations` / `!podcasts`
+- 直接输入电台或 Podcast 别名
+- 使用 `!play`、`!stop`、`!skip`、`!join`、`!leave` 等控制命令
+
+普通用户会收到 `只有管理员可以查看节目列表或控制播放`。如果管理员白名单为空，bot 会拒绝所有播放控制命令，避免误开放给整个房间。
 
 ### `!join` 只让机器人进通话
 
@@ -71,6 +83,7 @@ MATRIX_HOMESERVER=https://matrix.example.com
 MATRIX_USER_ID=@musicbot:example.com
 MATRIX_ACCESS_TOKEN=replace-me
 MATRIX_ALLOWED_ROOM_ID=!roomid:example.com
+MATRIX_ADMIN_USER_ID=@admin:example.com
 MATRIX_DOCKER_NETWORK=matrix
 ```
 
@@ -155,7 +168,7 @@ study1
 !relax1
 ```
 
-电台别名会立即切台：停止当前播放、清空队列、必要时加入 Element Call，然后播放新直播流。
+只有管理员白名单里的账号可以查看电台列表或切台。电台别名会立即切台：停止当前播放、清空队列、必要时加入 Element Call，然后播放新直播流。
 
 ## Podcast 播客别名
 
@@ -187,7 +200,7 @@ blg
 blg 3
 ```
 
-`blg` 播放最新一集，`blg 3` 播放第 3 新的一集。
+只有管理员白名单里的账号可以查看 Podcast 列表或点播。`blg` 播放最新一集，`blg 3` 播放第 3 新的一集。
 
 ## 常用命令
 
@@ -204,6 +217,8 @@ blg 3
 !podcasts
 !status
 ```
+
+这些命令默认只允许 `[access].admin_users` 中的账号执行。
 
 ## 验证
 
@@ -251,6 +266,7 @@ It is meant for a self-hosted Matrix room where people want shared background mu
 - `!stations` to list radio aliases
 - `!podcasts` to list podcast aliases
 - room whitelist for safer shared usage
+- admin user whitelist for listing, choosing, and controlling playback
 - safer live-stream switching, avoiding download/queue hangs for endless streams
 - quiet defaults for small private rooms
 
@@ -262,9 +278,12 @@ For production, set:
 
 ```dotenv
 MATRIX_ALLOWED_ROOM_ID=!roomid:example.com
+MATRIX_ADMIN_USER_ID=@admin:example.com
 ```
 
 If you need independent playback in multiple rooms, run one bot instance per room with a different bot account, container name, data directory, and whitelist.
+
+Only users listed in `[access].admin_users` can list stations or podcasts, choose aliases, or run playback control commands such as `!play`, `!stop`, `!skip`, `!join`, and `!leave`. If the admin whitelist is empty, all playback commands are rejected instead of being opened to the whole room.
 
 `!join` only makes the bot join the Element Call. Human users still need to click Element's join button to hear audio.
 
@@ -285,6 +304,7 @@ MATRIX_HOMESERVER=https://matrix.example.com
 MATRIX_USER_ID=@musicbot:example.com
 MATRIX_ACCESS_TOKEN=replace-me
 MATRIX_ALLOWED_ROOM_ID=!roomid:example.com
+MATRIX_ADMIN_USER_ID=@admin:example.com
 MATRIX_DOCKER_NETWORK=matrix
 ```
 
@@ -326,6 +346,8 @@ study1
 !relax1
 ```
 
+Only admin-whitelisted users can list or switch radio aliases.
+
 ### Podcast Aliases
 
 Runtime file:
@@ -345,9 +367,10 @@ blg 3
 ```
 
 `blg` plays the newest episode. `blg 3` plays the third newest episode.
+Only admin-whitelisted users can list or play podcast aliases.
 
 ### Security
 
 Never commit `.env`, `config/config.toml`, Matrix access tokens, bot passwords, private room IDs, logs, or caches.
 
-Use `MATRIX_ALLOWED_ROOM_ID` for production deployments.
+Use `MATRIX_ALLOWED_ROOM_ID` and `MATRIX_ADMIN_USER_ID` for production deployments.

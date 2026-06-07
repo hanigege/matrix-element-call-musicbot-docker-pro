@@ -14,6 +14,10 @@ auto_accept_invites = true
 allowed_rooms = [
   "${MATRIX_ALLOWED_ROOM_ID}",
 ]
+# 播放器是单实例全局资源；只有这些 Matrix 账号可以查看节目列表、点播或控制播放，不能随便留空开放。
+admin_users = [
+  "${MATRIX_ADMIN_USER_ID}",
+]
 
 [paths]
 audio_dir = "/tmp/musicbot_audio"

@@ -82,6 +82,7 @@ class IntegratedBot:
         self._noisy_cooldown_until: dict[tuple[str, str], float] = {}
         self._message_priority_map = {"critical": 0, "normal": 1, "noisy": 2}
         self._allowed_rooms = self._load_allowed_rooms()
+        self._admin_users = self._load_admin_users()
         self.call_worker = CallWorkerProcess(
             Path(__file__).resolve().parent,
             max_restart_attempts=config.WORKER_MAX_RESTART_ATTEMPTS,
@@ -130,6 +131,31 @@ class IntegratedBot:
         if not self._allowed_rooms:
             return True
         return room_id in self._allowed_rooms
+
+    def _load_admin_users(self) -> set[str]:
+        raw_access = getattr(self.config, "_toml", {}).get("access", {})
+        raw_users = raw_access.get("admin_users", []) if isinstance(raw_access, dict) else []
+        if isinstance(raw_users, str):
+            candidates = raw_users.replace("\n", ",").split(",")
+        elif isinstance(raw_users, list):
+            candidates = raw_users
+        else:
+            logger.warning("Ignoring access.admin_users because it is not a list or string")
+            return set()
+
+        users = {user.strip() for user in candidates if isinstance(user, str) and user.strip()}
+        if users:
+            logger.info("Playback admin whitelist enabled with %d user(s)", len(users))
+        else:
+            # 播放器会被任意控制命令抢占；管理员白名单留空时拒绝所有控制命令，避免误开放给普通成员。
+            logger.warning("Playback admin whitelist is empty; all playback commands will be rejected")
+        return users
+
+    def _sender_is_admin(self, sender: str) -> bool:
+        return sender in self._admin_users
+
+    async def _reject_non_admin_control(self, room: MatrixRoom):
+        await self.send_message(room.room_id, "❌ 只有管理员可以查看节目列表或控制播放。")
 
     def _cancel_auto_advance(self):
         if self._auto_advance_task and not self._auto_advance_task.done():
@@ -1299,10 +1325,15 @@ class IntegratedBot:
 
             await self.send_message(room.room_id, f"▶️ Now playing: {title}")
 
-    async def handle_command(self, room: MatrixRoom, message: str):
+    async def handle_command(self, room: MatrixRoom, message: str, sender: str):
         if not self._room_is_allowed(room.room_id):
             # 白名单是播放器抢占保护边界；这里必须在解析电台/播客别名前拦截，不能让快捷命令绕过。
             await self.send_message(room.room_id, "❌ 这个 musicbot 只允许在指定房间使用。")
+            return
+
+        if not self._sender_is_admin(sender):
+            # 节目列表和播放控制都只能给管理员使用；这里必须在读取别名前拦截，避免普通成员通过短别名切歌。
+            await self._reject_non_admin_control(room)
             return
 
         parts = message.strip().split(maxsplit=1)
@@ -2061,17 +2092,17 @@ class IntegratedBot:
 
         body = event.body.strip()
         if body.startswith("!"):
-            await self.handle_command(room, body)
+            await self.handle_command(room, body, event.sender)
             return
 
         if self._radio_alias_from_message(body):
             # 允许直接输入 tw1/jp1 这类已保存电台名；只匹配别名文件，避免普通聊天误触发。
-            await self.handle_command(room, f"!{body}")
+            await self.handle_command(room, f"!{body}", event.sender)
             return
 
         if self._podcast_alias_from_message(body):
             # Podcast 别名只从 data/podcast_aliases.json 匹配，避免普通聊天误触发。
-            await self.handle_command(room, f"!{body}")
+            await self.handle_command(room, f"!{body}", event.sender)
 
     async def start(self):
         logger.info("=" * 60)
