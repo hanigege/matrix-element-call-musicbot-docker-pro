@@ -11,6 +11,11 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
       - ./cache:/tmp/musicbot_audio
+    extra_hosts:
+      - "matrix.116160.xyz:10.20.20.8"
+      - "matrix-jwt.116160.xyz:10.20.20.8"
+      - "116160.xyz:10.20.20.8"
+      - "livekit.116160.xyz:10.20.20.8"
     networks:
       - matrix
     logging:
